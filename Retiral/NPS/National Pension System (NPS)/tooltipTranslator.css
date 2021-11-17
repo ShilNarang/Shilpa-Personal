@@ -1,0 +1,48 @@
+.reversoTooltip {
+    padding: 10px 15px !important;
+    max-width: 700px;
+}
+
+.reversoTooltipTranslated {
+    padding: 10px 15px !important;
+    box-sizing: border-box;
+    border-radius: 0 3px 3px 0;
+    border: 1px solid #DDD;
+    border-left: 5px solid #2699BF;
+    /*clearfix*/
+    overflow: auto;
+    zoom: 1;
+}
+
+.reversoTooltipTranslated .reversoChunk:hover {
+    background: rgba(0, 0, 0, 0.1);
+    filter: progid:DXImageTransform.Microsoft.gradient(GradientType=0, startColorstr='#1A000000', endColorstr='#1A000000');
+}
+
+.reversoTooltipAdditionalLinks {
+    clear: both;
+    padding: 10px 3px;
+    text-align: left;
+    font-size: 11px;
+}
+
+.reversoTooltipAdditionalLinks a {
+    margin-right: 10px;
+}
+
+.reversoTooltipLogo {
+    height: 20px;
+    width: 20px;
+}
+
+.reversoTooltipLogoTooltip {
+    padding: 5px 7px;
+}
+
+#reversoHeaderBtn:before {
+    content: none;
+}
+
+.xccstyle .dijitPopup.dijitTooltipDialogPopup[aria-label="sourceTooltipDialog"] {
+    z-index: 9999 !important;
+}

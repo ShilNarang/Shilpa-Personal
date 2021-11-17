@@ -1,0 +1,431 @@
+// Platziert einen Wiki-Export Button im Content-Bereich einer Wiki-Seite direkt neben anderen Buttons
+function PdfExport() {
+	if (document.createStyleSheet) {
+		document.createStyleSheet(this.appContext + "/css/pdfexport.css");
+	} else {
+		$("head").append(
+				"<link rel='stylesheet' href='" + this.appContext
+						+ "/css/pdfexport.css'/> ");
+	}
+	this.init();
+}
+
+PdfExport.prototype = {
+	appContext : 		'/boschconnect/pdfexport',
+	interval : 			null,
+	pageData : 			null,
+	letterFormats: 		null,
+	
+	dlgWrapper :		"pdfexport_dialog_wrapper",
+	dlg : 				"pdfexport_dialog",
+	dlgSubmit : 		"pdfexport_dialog_btn_submit",
+	dlgCancel : 		"pdfexport_dialog_btn_cancel",
+	dlgWarningNoURL : 	"pdfexport_dialog_warning_nourl",
+	dlgType : 			"pdfexport_dialog_type",
+	dlgConfig : 		"pdfexport_dialog_config",
+	dlgPDFURL : 		"pdfexport_dialog_input_url",
+	dlgPDFName : 		"pdfexport_dialog_input_name",
+	dlgExpS : 			"pdfexport_dialog_input_expsingle",
+	dlgExpM : 			"pdfexport_dialog_input_expmulti",
+	dlgInclLogo : 		"pdfexport_dialog_input_incllogo",
+	dlgInclComments : 	"pdfexport_dialog_input_inclcomments",
+	dlgFormat:			"pdfexport_dialog_input_format",
+	dlgFormatOrientation: "pdfexport_dialog_input_format_orientation",
+	
+	sExportBtn : 		"pdfexport_button",
+	sExportBtnBox : 	"pdfexport_button_box",
+	sExportBtnImg :		"pdfexport_button_img",
+	
+	sEventPageLoaded: 	"page_loaded",
+	
+	/* ================================================================================= */
+	/* ================================ INITIALISATION ================================= */
+	/* ================================================================================= */
+	
+	init : function() {
+		var self = this;
+		this.loadProperties();
+		this.loadLetterFormats();
+		interval = setInterval(function(){self.waitForPageLoad(self) }, 500);
+		
+		$( document ).on( this.sEventPageLoaded, function(event){
+			clearInterval(interval);
+			self.placeButton();
+			
+			self.setHashChangeEvent();
+			self.updatePageData();
+		});
+	},
+	
+	
+	/*--------------------------------- LOAD PROPERTIES -------------------------------- */
+	loadProperties : function() {
+		var localizationCode = navigator.languages? navigator.languages[0] : document.getElementsByTagName("html")[0].lang;
+	
+		$.i18n.properties({
+			name : 'PdfExportLang',
+			path : 'https://connect.bosch.com/wikis/nav/common/styles/PDFExport/',
+			mode : 'both',
+			language : localizationCode
+		});
+		this.sDialogTitle = 	$.i18n.prop('dialogTitle');
+		this.sSubmit = 			$.i18n.prop('submit');
+		this.sCancel = 			$.i18n.prop('cancel');
+		this.sExportAmount =	$.i18n.prop('exportAmount');
+		this.sWikiSingle = 		$.i18n.prop('wikiSingle');
+		this.sWikiMulti = 		$.i18n.prop('wikiMulti');
+		this.sBlogSingle = 		$.i18n.prop('blogSingle');
+		this.sBlogMulti = 		$.i18n.prop('blogMulti');
+		this.sExportConfig = 	$.i18n.prop('exportConfig');
+		this.sIncludeLogo = 	$.i18n.prop('includeLogo');
+		this.sIncludeComments =	$.i18n.prop('includeComments');
+		this.sLetterFormat = 	$.i18n.prop('letterFormat');
+		this.sFormatHorizontal =$.i18n.prop('formatHorizontal');
+		this.sFormatVertical = 	$.i18n.prop('formatVertical');
+	},
+	
+	/*------------------------------- LOAD LETTER FORMATS ------------------------------ */
+	loadLetterFormats : function() {
+		var self = this;
+		$.ajax({ 
+			url:'https://connect.bosch.com/wikis/nav/common/styles/PDFExport/printer.json',
+			type:'get',
+			dataType: 'json'
+		})
+		.done(function(data){
+			console.log(data);
+			self.letterFormats = data;
+		})
+		.fail(function(data) {
+			// handle request failures
+			console.log("PDF-Export: No Letter Formats Found");
+		});
+	},
+	
+	/* ---------------------------- PLACE PDF-EXPORT-BUTTON ----------------------------- */
+	placeButton : function() {
+		var html = "";
+		html += "<span class=\"" + this.sExportBtnBox + "\">";
+		html += 	"<div class=\"" + this.sExportBtn + "\">"
+		// EPTACT-2693 - UX: Change PDF Icon to new Corporate Design PDF Icon
+		html += 		"<img width=\"28px\" height=\"28px\" class=\"" + this.sExportBtnImg + "\" src=\"/wikis/nav/common/styles/PDFExport/bosch-ic-pdf.svg\" alt=\"Wiki PDF Export\">"
+		html += 	"</div>";
+		html += "</span>";
+		
+		if(this.pageType == "wiki"){
+			$("#wikiHeader .lotusBtnContainer").append(html);
+		} else {
+			$(".lotusActionBar.lotusBtnContainer.aria_toolbar").append(html);
+		}
+
+		var button = $("."+this.sExportBtn);
+		this.setPDFButtonClickedEvent(button);
+	},
+	waitForPageLoad : function(self) {
+		if ($("."+self.sExportBtn).length == 0) {
+			if ($("#wikiHeader .lotusBtnContainer").length > 0) {
+				this.pageType = "wiki";
+				$( document ).trigger( this.sEventPageLoaded);
+			}
+			if($(".lotusLayout.lotusHeader.blogsWrapText").length > 0 && $("#REFRESH_URL").attr("href").indexOf("entry") > -1){
+				this.pageType = "blog";
+				$( document ).trigger( this.sEventPageLoaded);
+			}
+		} else {/*console.log("wikiHeader currently not found");*/}
+	},
+	
+	
+	
+	
+	/* ================================================================================== */
+	/* ================================ OPEN DIALOG ===================================== */
+	/* ================================================================================== */
+	
+	openDialog : function() {
+		this.createDialog();
+		this.createForm();
+		this.setDefaultProps();
+	},
+	
+	
+	/* ------------------------------- CREATE DIALOG ------------------------------------ */
+	createDialog : function() {
+		var dialog = $("."+this.dlg); 
+		var self = this;
+
+		if (dialog.length == 0){ $("body").append("<div class='" + this.dlg + "' style='text-align: center; display: none;'></div>"); };
+		
+		dialog = $("."+this.dlg); // Element muss erneut geholt werden
+		dialog.dialog({
+			title : 		self.sDialogTitle,
+			dialogClass : 	this.dlgWrapper,
+			autoOpen :		false,
+			modal : 		true,
+			resizable : 	false,
+			close : 		function( event, ui ){self.closeDialog(event)},
+			buttons : 		self.getDialogButtons(),
+			width : 		"360px"
+		});
+		dialog.dialog("open");
+		$("."+this.dlgWrapper +" " +"."+this.dlgSubmit).show();
+		
+	},
+	
+	
+	
+	/* -------------------------------- CREATE FORM ------------------------------------- */
+	createForm : function() {
+		switch (this.pageType){
+			case "wiki":
+				var single = this.sWikiSingle;
+				var multi = this.sWikiMulti;
+				break;
+			case "blog":
+				var single = this.sBlogSingle;
+				var multi = this.sBlogMulti;
+				break;
+		}
+		
+	
+		var html = ""
+		html +=	"<form action='' method='POST' class='lotusForm'>"
+		html +=		"<input class='" + this.dlgPDFURL + "' type='hidden' name='url' value='' \/>"
+		html +=		"<input class='" + this.dlgPDFName + "' type='hidden' name='filename' value='' \/>"
+		html +=		"<p class='" + this.dlgWarningNoURL + "' style='display:none;'>"
+		html += 		"<span class='ui-icon ui-icon-alert' style='float:left; margin:0 7px 20px 0;'></span>"
+		html +=			"The URL of current wiki page was not found. Export probably impossible."
+		html += 	"</p>"
+		html +=		"<table style='border:0;'>"
+		html +=			"<tr>"
+		html +=				"<td class='lotusFormLabel'>" + this.sExportAmount + "</td>"
+		html +=				"<td><fieldset class='" + this.dlgType + "' style='text-align: left'>"
+		html +=					"<input id='"  + this.dlgExpS + "' class='"  + this.dlgExpS + "' type='radio' name='radio' \/>"
+		html +=					"<label for='" + this.dlgExpS + "'>" + single + "</label><br>"
+		html +=					"<input id='"  + this.dlgExpM + "' class='"  + this.dlgExpM + "' type='radio' name='radio' \/>"
+		html += 				"<label for='" + this.dlgExpM + "'>" + multi + "</label>"
+		html +=				"</fieldset></td>"
+		html +=			"</tr><tr>"
+		html +=				"<td class='lotusFormLabel'>" + this.sExportConfig + "</td>"
+		html +=				"<td><fieldset class='" + this.dlgConfig + "'style='text-align: left'>"
+		html +=					"<input id='"  + this.dlgInclLogo + "' class='"  + this.dlgInclLogo + "' type='checkbox' \/>"
+		html +=					"<label for='" + this.dlgInclLogo + "'>" + this.sIncludeLogo + "</label><br>"
+		html +=					"<input id='"  + this.dlgInclComments + "' class='"  + this.dlgInclComments + "' type='checkbox' \/>"
+		html += 				"<label for='" + this.dlgInclComments + "'>" + this.sIncludeComments + "</label>"
+		html +=				"</fieldset></td>"
+		html +=			"</tr><tr>"
+		html +=				"<td class='lotusFormLabel'>" + this.sLetterFormat + "</td>"
+		html +=				"<td><select class='" + this.dlgFormat + "'>"
+		
+		for(var option in this.letterFormats ){
+			html += "<option value='" + option + "'>" + option + "</option>"
+		}
+		
+		html +=				"</select> <select class='" + this.dlgFormatOrientation + "'>"
+		html +=					"<option value='hoch'>" + this.sFormatVertical + "</option>"
+		html +=					"<option value='quer'>" + this.sFormatHorizontal + "</option>"
+		html +=				"</select></td>"
+		html += 		"</tr>"
+		html +=		"</table>"
+		html +=	"</form>";
+		
+		this.setDialogContent(html);
+		if (this.pageData.type == "unknown") {
+			$("."+this.dlgWarningNoURL).css("display", "block");
+		}
+	},
+	
+	
+	
+	/* -------------------------------- DIALOG UTIL ------------------------------------- */
+	setDefaultProps : function() { // TODO: Auf Properties-Datei reagieren
+		$("."+this.dlgExpS).attr("checked", "checked");
+		$("."+this.dlgInclLogo).attr("checked", "checked");
+	},
+	setDialogContent : function(html){
+		var dialogcontent = $("."+this.dlg);
+			dialogcontent.empty();
+			dialogcontent.append(html);	
+	},
+	saveDialog : function() {
+		this.createPDF();
+	},
+	closeDialog : function(ev) {
+		ev.preventDefault();
+		ev.stopPropagation();
+		$(this).remove();
+	},
+	getDialogButtons : function(){
+		var self = this;
+		return	[	{id: self.dlgSubmit, text: self.sSubmit, click: function(){ self.saveDialog();}}, 
+					{id: self.dlgCancel, text: self.sCancel, click: function(){ $(this).remove();}}	];
+	},
+	
+	
+	
+	/* ================================================================================== */
+	/* ================================= CREATE PDF ===================================== */
+	/* ================================================================================== */
+	createPDF : function() {
+		var url = this.getConnectionsUrl() + this.appContext + "/servlet?";
+		url += $("."+this.dlgInclComments).is(':checked') ? "printComments=true&" : "printComments=false&";
+		url += $("."+this.dlgInclLogo).is(':checked') ? "printLogo=true" : "printLogo=false";
+		url += this.pageType == "wiki" ? "&exportType=wiki" : "&exportType=blog";
+		
+		var pdfUrl, pdfName;
+		
+		if ($("."+this.dlgExpS).is(':checked')) {
+			switch (this.pageType){
+				case "wiki":
+					url += "&exportType=wiki";
+					pdfUrl = this.getConnectionsUrl() + this.buildURL();
+					break;
+				case "blog":
+					url += "&exportType=blog";
+					pdfUrl = this.pageData.url;
+					break;
+			}
+			url += '&exportRange=single';
+			pdfName = this.pageData.fileName;
+		} 
+		
+		if ($("."+this.dlgExpM).is(':checked')) {
+			switch (this.pageType){
+				case "wiki":
+					pdfUrl = this.pageData.containerId;
+					break;
+				case "blog":
+					pdfUrl = this.pageData.url;
+					break;
+			}
+			url += "&exportRange=full";
+			pdfName = document.title;// TODO Container-Titel
+		}
+		
+		var letterFormat, orientation;
+		format = $("."+this.dlgFormat).get(0).value;
+		orientation = $("."+this.dlgFormatOrientation).get(0).value;
+		
+		if(orientation == "hoch"){
+			url += "&width=" + this.letterFormats[format].x + "&height=" + this.letterFormats[format].y;
+		} else {
+			url += "&width=" + this.letterFormats[format].y + "&height=" + this.letterFormats[format].x;
+		}
+		
+		this.submitDialog(url, pdfUrl, pdfName);
+		
+	},
+	submitDialog : function(url, pdfUrl, pdfName){
+		$("."+this.dlg).children("form").get(0).setAttribute('action', url);
+		$("."+this.dlgPDFURL).get(0).setAttribute('value', pdfUrl);
+		$("."+this.dlgPDFName).get(0).setAttribute('value', pdfName);
+
+		$("."+this.dlg).children("form").submit();
+		$("."+this.dlgWrapper).remove();
+	},
+	
+	
+	
+	
+
+	
+	
+	
+	
+	
+	/* ================================================================================== */
+	/* =================================== EVENTS ========================================*/
+	/* ================================================================================== */
+	setHashChangeEvent : function() {
+		$(window).on('hashchange', function(event) {
+			event.preventDefault();
+			interval = setInterval(function(){
+				PdfExport.prototype.waitForPageLoad(PdfExport.prototype)}, 250);
+		});
+	},
+	
+	setPDFButtonClickedEvent : function(button) {
+		button.off("click");
+		button.on('click', $.proxy(this.openDialog, this));
+	},
+	
+	
+	
+	
+	
+	
+	
+	/* ================================================================================== */
+	/* ===================================== UTIL ======================================= */
+	/* ================================================================================== */
+	buildURL : function() {
+		if (this.pageData.url) {
+			var wikiURL = this.pageData.url;
+			wikiURL += "media/" + this.pageData.entityId
+					+ "?convertTo=html&errorPage=true&f="
+					+ this.pageData.entityId;
+		}
+		// console.log(wikiURL);
+		return wikiURL;
+	},
+	
+	buildBlogURL : function() {
+		var wikiURL = "";
+		if (this.pageData.url) {
+			wikiURL = this.pageData.url;
+		} else {
+			console.log("PDF-URL generation error");
+		}
+		// console.log(wikiURL);
+		return wikiURL;
+	},
+
+	updatePageData : function() {
+		var self = this;
+		
+		if(this.pageType == "wiki"){
+			var link = $(".lotusFeeds.lotusMeta").children().eq(1);
+			var url = link.attr("href").split("feed?")[0];
+			var fileName = link.attr("title");
+			var eId = encodeURIComponent(fileName);
+			
+			if (match = /\/wiki\/(.*?)\/page\/([^\/]*)(?=\/)/.exec(url)) {
+				url = url.split("page\/")[0];
+				url += "page\/" + eId + "\/";
+				self.pageData = {
+					url : url,
+					type : 'wiki-page',
+					containerId : match[1],
+					entityId : eId,
+					fileName: fileName
+				};
+			} else {
+				self.pageData = {
+					type : 'unknown'
+				};
+			}
+		} else {
+			// https://she9con292.corp.conet.local/pdfexport/servlet?printComments=false&printLogo=true&export=blog-entry&filename=TEST
+			// &url=https://she9con292.corp.conet.local:443/blogs/e3b7d14c-4c43-4519-b3f7-4426c98f1b3c/api/entries/16480917-b254-477d-8236-c181e7e30f61
+			var link = $("#REFRESH_URL").attr("href");
+			var url = link.split("entry\/")[0];
+			var eId = $("#actionforms_forms input[name=entryId]").val();
+			var fileName = $("#actionforms_forms input[name=oldEntryTitle]").val();
+			var cId = url.split("blogs\/")[1].replace("\/","")
+			
+			url += "api\/entries\/" + eId;
+			self.pageData = {
+				url : url,
+				type : 'blog-page',
+				containerId : cId,
+				entityId : eId,
+				fileName: fileName
+			};
+		}
+	},
+
+	getConnectionsUrl : function() {
+		return location.protocol + "//" + location.host;
+	}
+	
+	
+}

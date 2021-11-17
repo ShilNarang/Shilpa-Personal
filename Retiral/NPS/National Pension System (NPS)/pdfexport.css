@@ -1,0 +1,34 @@
+.pdfexport_button {
+	background-color: #666666;
+    background: -moz-linear-gradient(center top, #666666, #444444);
+    background: -webkit-linear-gradient(top, #666666 0%, #444444 100%);
+    background: -o-linear-gradient(center top, #666666, #444444);
+    background-image: linear-gradient(to bottom, #666666 0%, #444444 100%);
+    border-radius: 3px 3px 3px 3px;
+	border: 0;
+	color: #EEEEEE;
+	margin: 0px 5px;
+	padding: 0px 0px 0px 5px;
+	text-shadow: 0 1px 1px #000000;
+	font-weight: normal;
+	text-decoration: none;
+	line-height: 1.67;
+	list-style-type: none;
+	white-space: nowrap;
+	text-align: left;
+	height: 28px;
+	cursor: pointer;
+	display:inline-block;
+}
+
+/* .pdfexport_button:hover {
+	box-shadow: 0 1px 1px #000000;
+} */
+
+.pdfexport_dialog_type {
+	list-style-type: none;
+}
+
+.pdfexport_button_img{
+	margin-right: 10px;
+}
