@@ -1,4 +1,0 @@
-
-moduleIds=[].concat(["dojo.on"]);
-
-window['_js_modules']=(window['_js_modules']||[]).concat(moduleIds.filter(function (item) { return (window['_js_modules']||[]).indexOf(item) < 0; }));
